@@ -60,7 +60,10 @@ struct ChatFeatureTests {
 
         #expect(controller.state.visibleEntries.count == 1)
         #expect(controller.state.visibleEntries[0].message.id == "server-message")
-        #expect(controller.state.visibleEntries[0].delivery == .sent)
+        #expect(
+            controller.state.visibleEntries[0].delivery
+                == WhisperMessageDeliveryState.sent
+        )
         let requests = await socket.sentMessageRequests()
         #expect(requests.count == 1)
         #expect(requests[0].clientId == "client-test-1")
