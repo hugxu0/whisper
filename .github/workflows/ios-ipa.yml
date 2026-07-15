@@ -1,0 +1,198 @@
+name: iOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      export_method:
+        description: "签名方式：Development 需要设备已注册，Ad Hoc 适合已注册设备分发"
+        required: true
+        type: choice
+        options:
+          - development
+          - ad-hoc
+        default: development
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ipa:
+    name: Archive and export IPA
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      BUNDLE_ID: com.whisper.ios
+      IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+      IOS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.IOS_SIGNING_CERTIFICATE_BASE64 }}
+      IOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.IOS_SIGNING_CERTIFICATE_PASSWORD }}
+      IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+      IOS_CODE_SIGN_IDENTITY: ${{ secrets.IOS_CODE_SIGN_IDENTITY }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Show Apple toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Validate signing secrets
+        shell: bash
+        run: |
+          missing=()
+          [[ -n "$IOS_TEAM_ID" ]] || missing+=(IOS_TEAM_ID)
+          [[ -n "$IOS_SIGNING_CERTIFICATE_BASE64" ]] || missing+=(IOS_SIGNING_CERTIFICATE_BASE64)
+          [[ -n "$IOS_SIGNING_CERTIFICATE_PASSWORD" ]] || missing+=(IOS_SIGNING_CERTIFICATE_PASSWORD)
+          [[ -n "$IOS_PROVISIONING_PROFILE_BASE64" ]] || missing+=(IOS_PROVISIONING_PROFILE_BASE64)
+
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required GitHub Actions secrets: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Resolve Xcode package dependencies
+        run: |
+          xcodebuild \
+            -project Whisper.xcodeproj \
+            -scheme Whisper \
+            -resolvePackageDependencies
+
+      - name: Import signing certificate and provisioning profile
+        id: signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          SIGNING_DIR="$RUNNER_TEMP/whisper-signing"
+          KEYCHAIN_PATH="$SIGNING_DIR/whisper-build.keychain-db"
+          CERTIFICATE_PATH="$SIGNING_DIR/signing-certificate.p12"
+          PROFILE_PATH="$SIGNING_DIR/Whisper.mobileprovision"
+          PROFILE_PLIST="$SIGNING_DIR/profile.plist"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+
+          mkdir -p "$SIGNING_DIR"
+          printf '%s' "$IOS_SIGNING_CERTIFICATE_BASE64" | base64 -D > "$CERTIFICATE_PATH"
+          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -D > "$PROFILE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" \
+            -P "$IOS_SIGNING_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          security cms -D -i "$PROFILE_PATH" > "$PROFILE_PLIST"
+          PROFILE_UUID="$(/usr/libexec/PlistBuddy -c 'Print:UUID' "$PROFILE_PLIST")"
+          PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print:Name' "$PROFILE_PLIST")"
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+
+      - name: Archive for a physical iOS device
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build-artifacts
+
+          if [[ "${{ inputs.export_method }}" == "ad-hoc" ]]; then
+            SIGNING_IDENTITY="${IOS_CODE_SIGN_IDENTITY:-Apple Distribution}"
+          else
+            SIGNING_IDENTITY="${IOS_CODE_SIGN_IDENTITY:-Apple Development}"
+          fi
+
+          set -o pipefail
+          xcodebuild \
+            -project Whisper.xcodeproj \
+            -scheme Whisper \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/Whisper.xcarchive" \
+            archive \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
+            CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
+            PROVISIONING_PROFILE="$PROFILE_UUID" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            | tee build-artifacts/archive.log
+
+      - name: Export signed IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.export_method }}" == "ad-hoc" ]]; then
+            SIGNING_IDENTITY="${IOS_CODE_SIGN_IDENTITY:-Apple Distribution}"
+            EXPORT_METHOD="ad-hoc"
+          else
+            SIGNING_IDENTITY="${IOS_CODE_SIGN_IDENTITY:-Apple Development}"
+            EXPORT_METHOD="development"
+          fi
+
+          cat > build-artifacts/ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>$EXPORT_METHOD</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>teamID</key>
+            <string>$IOS_TEAM_ID</string>
+            <key>signingCertificate</key>
+            <string>$SIGNING_IDENTITY</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$BUNDLE_ID</key>
+              <string>$PROFILE_NAME</string>
+            </dict>
+          </dict>
+          </plist>
+          PLIST
+
+          set -o pipefail
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$RUNNER_TEMP/Whisper.xcarchive" \
+            -exportPath build-artifacts/export \
+            -exportOptionsPlist build-artifacts/ExportOptions.plist \
+            | tee build-artifacts/export.log
+
+          IPA_PATH="$(find build-artifacts/export -maxdepth 1 -name '*.ipa' -print -quit)"
+          test -n "$IPA_PATH"
+          cp "$IPA_PATH" build-artifacts/Whisper.ipa
+
+      - name: Upload signed IPA
+        uses: actions/upload-artifact@v7
+        with:
+          name: whisper-${{ inputs.export_method }}-ipa-${{ github.run_number }}
+          path: build-artifacts/Whisper.ipa
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove temporary signing keychain
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${KEYCHAIN_PATH:-}" && -f "$KEYCHAIN_PATH" ]]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
