@@ -38,6 +38,7 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         ITSAppUsesNonExemptEncryption: false
+        NSMicrophoneUsageDescription: "用于录制并发送语音消息"
         WhisperAPIBaseURL: "https://hoo66.top"
     settings:
       base:

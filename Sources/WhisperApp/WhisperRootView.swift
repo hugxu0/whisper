@@ -5,6 +5,8 @@ import WhisperFeatures
 
 @MainActor
 public struct WhisperRootView: View {
+    @Environment(\.scenePhase) private var scenePhase
+
     @State private var session: WhisperSessionController
     @State private var chat: WhisperChatController
     @State private var username = "xu"
@@ -12,6 +14,7 @@ public struct WhisperRootView: View {
     @State private var pendingRequest: WhisperLoginRequest?
     @State private var attemptID = 0
     @State private var reconnectID = 0
+    @State private var recoveryID = 0
 
     private let device: WhisperDeviceDescription
 
@@ -46,6 +49,9 @@ public struct WhisperRootView: View {
         .task(id: reconnectID) {
             guard reconnectID > 0 else { return }
             await session.reconnect()
+            if session.state.connection == .connected {
+                await chat.synchronize()
+            }
         }
         .task(id: session.state.bootstrap?.serverTime) {
             guard let bootstrap = session.state.bootstrap,
@@ -56,10 +62,29 @@ public struct WhisperRootView: View {
                 username: account.username,
                 accountName: account.name
             )
-            await chat.monitorEvents()
+            async let monitoring: Void = chat.monitorEvents()
+            await chat.synchronize()
+            await chat.restoreOutboxAndRetry()
+            await monitoring
         }
         .task {
             await session.monitorConnection()
+        }
+        .task(id: recoveryID) {
+            guard recoveryID > 0, session.state.bootstrap != nil else { return }
+            if session.state.connection == .connected {
+                await chat.synchronize()
+            } else {
+                await session.reconnect()
+                if session.state.connection == .connected {
+                    await chat.synchronize()
+                }
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active, session.state.bootstrap != nil {
+                recoveryID &+= 1
+            }
         }
     }
 

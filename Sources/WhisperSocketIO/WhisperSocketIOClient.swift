@@ -139,19 +139,75 @@ public final class WhisperSocketIOClient: @unchecked Sendable, WhisperSocketMess
 
     public func sendMessage(_ message: WhisperMessageSend) async throws -> WhisperMessageSendAck {
         let payload = try Self.encodeObject(message)
-        let acknowledgements = AsyncThrowingStream<WhisperMessageSendAck, Error> { continuation in
+        return try await emitWithAcknowledgement(
+            event: .messageSend,
+            payload: payload,
+            response: WhisperMessageSendAck.self
+        )
+    }
+
+    public func recallMessage(id: String) async throws -> WhisperRecallAcknowledgement {
+        try await emitWithAcknowledgement(
+            event: .messageRecall,
+            payload: ["id": id],
+            response: WhisperRecallAcknowledgement.self
+        )
+    }
+
+    public func searchMessages(
+        channel: WhisperChannel,
+        query: String,
+        limit: Int
+    ) async throws -> WhisperSearchAcknowledgement {
+        try await emitWithAcknowledgement(
+            event: .messagesSearch,
+            payload: [
+                "channel": channel.rawValue,
+                "query": query,
+                "limit": min(max(limit, 1), 100)
+            ],
+            response: WhisperSearchAcknowledgement.self
+        )
+    }
+
+    public func markRead(channel: WhisperChannel, timestamp: Int64) async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            handleQueue.async { [self] in
+                guard let socket else {
+                    continuation.resume(
+                        throwing: WhisperSocketError.connectionFailed(
+                            "read receipt requires a connected socket"
+                        )
+                    )
+                    return
+                }
+                socket.emit(
+                    WhisperSocketEvent.read.rawValue,
+                    ["channel": channel.rawValue, "ts": timestamp]
+                )
+                continuation.resume()
+            }
+        }
+    }
+
+    private func emitWithAcknowledgement<Response: Decodable & Sendable>(
+        event: WhisperSocketEvent,
+        payload: [String: Any],
+        response: Response.Type
+    ) async throws -> Response {
+        let acknowledgements = AsyncThrowingStream<Response, Error> { continuation in
             handleQueue.async { [self] in
                 guard let socket else {
                     continuation.finish(
                         throwing: WhisperSocketError.connectionFailed(
-                            "message send requires a connected socket"
+                            "\(event.rawValue) requires a connected socket"
                         )
                     )
                     return
                 }
 
                 socket
-                    .emitWithAck(WhisperSocketEvent.messageSend.rawValue, payload)
+                    .emitWithAck(event.rawValue, payload)
                     .timingOut(after: 15) { data in
                         if let status = data.first as? String,
                            status == SocketAckStatus.noAck {
@@ -160,7 +216,10 @@ public final class WhisperSocketIOClient: @unchecked Sendable, WhisperSocketMess
                         }
 
                         do {
-                            let acknowledgement = try Self.decodeAcknowledgement(data)
+                            let acknowledgement = try Self.decodeAcknowledgement(
+                                data,
+                                as: response
+                            )
                             continuation.yield(acknowledgement)
                             continuation.finish()
                         } catch {
@@ -193,7 +252,10 @@ public final class WhisperSocketIOClient: @unchecked Sendable, WhisperSocketMess
         return object
     }
 
-    private static func decodeAcknowledgement(_ data: [Any]) throws -> WhisperMessageSendAck {
+    private static func decodeAcknowledgement<Response: Decodable>(
+        _ data: [Any],
+        as response: Response.Type
+    ) throws -> Response {
         guard let object = data.first as? [String: Any] else {
             throw WhisperSocketError.invalidPayload
         }
@@ -204,7 +266,7 @@ public final class WhisperSocketIOClient: @unchecked Sendable, WhisperSocketMess
 
         let encoded = try JSONSerialization.data(withJSONObject: object)
         do {
-            return try JSONDecoder().decode(WhisperMessageSendAck.self, from: encoded)
+            return try JSONDecoder().decode(response, from: encoded)
         } catch {
             throw WhisperSocketError.invalidPayload
         }

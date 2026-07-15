@@ -3,6 +3,7 @@ import WhisperDomain
 
 public enum WhisperAPIError: Error, Equatable, Sendable {
     case missingToken
+    case uploadTooLarge
     case server(statusCode: Int, message: String?)
     case decoding
 }
@@ -17,7 +18,7 @@ public protocol WhisperSessionAPI: Sendable {
 public actor WhisperAPIClient: WhisperSessionAPI {
     private let transport: any WhisperHTTPClient
     private let configuration: WhisperAPIConfiguration
-    private var token: String?
+    var token: String?
 
     public init(
         transport: any WhisperHTTPClient,
@@ -49,16 +50,17 @@ public actor WhisperAPIClient: WhisperSessionAPI {
         token = nil
     }
 
-    private func send<Response: Decodable>(
+    func send<Response: Decodable>(
         endpoint: WhisperAPIEndpoint,
         method: WhisperHTTPMethod,
         body: Data? = nil,
+        contentType: String? = nil,
         requiresToken: Bool
     ) async throws -> Response {
         let url = try makeURL(for: endpoint)
         var headers = ["Accept": "application/json"]
         if body != nil {
-            headers["Content-Type"] = "application/json"
+            headers["Content-Type"] = contentType ?? "application/json"
         }
         if requiresToken, let token {
             headers["Authorization"] = "Bearer \(token)"
@@ -79,7 +81,7 @@ public actor WhisperAPIClient: WhisperSessionAPI {
         }
     }
 
-    private func makeURL(for endpoint: WhisperAPIEndpoint) throws -> URL {
+    func makeURL(for endpoint: WhisperAPIEndpoint) throws -> URL {
         guard var components = URLComponents(
             url: configuration.baseURL,
             resolvingAgainstBaseURL: false

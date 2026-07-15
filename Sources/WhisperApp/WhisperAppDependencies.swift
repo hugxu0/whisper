@@ -10,13 +10,19 @@ public struct WhisperAppDependencies {
 
     public init(
         sessionAPI: any WhisperSessionAPI,
-        socketClient: any WhisperSocketMessagingClient
+        chatAPI: (any WhisperChatAPI)? = nil,
+        socketClient: any WhisperSocketMessagingClient,
+        outbox: any WhisperOutboxClient = WhisperInMemoryOutboxClient()
     ) {
         self.sessionController = WhisperSessionController(
             api: sessionAPI,
             socket: socketClient
         )
-        self.chatController = WhisperChatController(socket: socketClient)
+        self.chatController = WhisperChatController(
+            socket: socketClient,
+            api: chatAPI,
+            outbox: outbox
+        )
     }
 
     public static func live(baseURL: URL) -> WhisperAppDependencies {
@@ -26,6 +32,11 @@ public struct WhisperAppDependencies {
             configuration: WhisperAPIConfiguration(baseURL: baseURL)
         )
         let socket = WhisperSocketIOClient(baseURL: baseURL)
-        return WhisperAppDependencies(sessionAPI: api, socketClient: socket)
+        return WhisperAppDependencies(
+            sessionAPI: api,
+            chatAPI: api,
+            socketClient: socket,
+            outbox: WhisperFileOutboxClient.live()
+        )
     }
 }
