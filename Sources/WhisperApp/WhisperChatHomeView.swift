@@ -57,6 +57,9 @@ public struct WhisperChatHomeView: View {
         }
         .scrollIndicators(.hidden)
         .background(WhisperWarmBackground())
+        #if os(iOS)
+        .toolbar(.hidden, for: .navigationBar)
+        #endif
         .task(id: pendingQuickActionID) {
             guard let pendingQuickActionID,
                   let action = quickActions.first(where: { $0.id == pendingQuickActionID })
