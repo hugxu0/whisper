@@ -9,11 +9,13 @@
 - Initial Swift Testing contract tests added without live network access.
 - Fixture-backed login → Bootstrap → Socket lifecycle slice added with retryable
   session state and injectable clients.
+- SwiftUI composition root, XcodeGen application target, and Socket.IO v4
+  adapter added behind the retained realtime boundary.
 
 ## Not started yet
 
-- Xcode iOS application target and dependency-injection composition root.
-- Socket.IO event streams and message ack routing behind the client boundary.
+- macOS generation of the Xcode project and first Simulator build.
+- Chat timeline, pending outbox, and consumption of Socket.IO message events.
 - Local persistence, outbox, media pipeline, and feature UI.
 - macOS CI build and Simulator verification.
 

@@ -1,3 +1,4 @@
+import Observation
 import WhisperDomain
 import WhisperClients
 
@@ -65,11 +66,13 @@ public enum WhisperSessionFeature {
 /// object with `@State` and call `start` from a `.task`, which gives cancellation
 /// to the view lifecycle without a long-lived unstructured task in the feature.
 @MainActor
+@Observable
 public final class WhisperSessionController {
     public private(set) var state: WhisperSessionState
 
     private let api: any WhisperSessionAPI
     private let socket: any WhisperSocketClient
+    @ObservationIgnored
     private var attempt = 0
 
     public init(
@@ -122,6 +125,25 @@ public final class WhisperSessionController {
 
     public func retry(request: WhisperLoginRequest) async {
         await start(request: request)
+    }
+
+    public func monitorConnection() async {
+        let events = await socket.lifecycleEvents()
+        for await event in events {
+            guard Task.isCancelled == false else { return }
+            switch event {
+            case .connected:
+                state.connection = .connected
+                state.lastError = nil
+            case .reconnecting:
+                state.connection = .connecting
+            case .disconnected:
+                state.connection = .idle
+            case .failed(let message):
+                state.connection = .failed(message)
+                state.lastError = message
+            }
+        }
     }
 
     public func stop() async {

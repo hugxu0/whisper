@@ -19,6 +19,19 @@ macOS CI runner.
 - Simulator smoke flows for login, bootstrap, messaging, upload, and reconnect;
 - archive/signing only in the release pipeline.
 
+The checked-in `project.yml` is the Xcode project source of truth. On macOS:
+
+```bash
+xcodegen generate
+xcodebuild -project Whisper.xcodeproj -scheme Whisper \
+  -destination 'generic/platform=iOS Simulator' build
+swift test
+```
+
+The generated `Whisper.xcodeproj` stays untracked. `Package.resolved` should be
+committed after the first successful macOS dependency resolution so Socket.IO
+and Starscream remain reproducible.
+
 The first CI job should consume the synthetic fixtures without contacting
 `https://hoo66.top`. Live API smoke tests, if ever needed, must be a separate,
 explicitly configured job.

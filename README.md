@@ -8,8 +8,10 @@ This repository is intentionally independent from the legacy implementation. The
 
 The repository now contains a clean-slate Swift package boundary, synthetic
 API/Socket fixtures, injectable HTTP/Socket clients, and the first
-login→Bootstrap→connection state slice. No product source code has been copied
-from the legacy project, and no live server request is made by the test suite.
+login→Bootstrap→connection state slice. It also includes an XcodeGen iOS target
+and a Socket.IO adapter that sends authentication in the retained CONNECT
+payload. No product source code has been copied from the legacy project, and no
+live server request is made by the test suite.
 
 ## Rewrite rules
 
@@ -21,6 +23,5 @@ from the legacy project, and no live server request is made by the test suite.
 
 ## Next milestone
 
-Add the iOS/Xcode composition root and replace only the fixture transport with
-the real Socket.IO implementation behind the same client protocols. Keep the
-retained server paths and event names unchanged.
+Generate and compile the Xcode project on macOS, then implement the first chat
+timeline slice using the existing `message:new` and `message:send` contracts.

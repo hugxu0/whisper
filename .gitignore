@@ -3,7 +3,10 @@
 # Xcode / Swift build output
 DerivedData/
 build/
+.build/
 build-artifacts/
+Whisper.xcodeproj/
+.swiftpm/
 *.xcuserstate
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
@@ -17,4 +20,3 @@ build-artifacts/
 artifacts/
 *.ipa
 *.xcarchive/
-

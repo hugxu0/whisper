@@ -26,18 +26,35 @@ public actor WhisperStubHTTPClient: WhisperHTTPClient {
 public actor WhisperStubSocketClient: WhisperSocketClient {
     private var connectError: WhisperSocketError?
     private var connectedToken: String?
+    private let lifecycleStream: AsyncStream<WhisperSocketLifecycleEvent>
+    private let lifecycleContinuation: AsyncStream<WhisperSocketLifecycleEvent>.Continuation
 
     public init(connectError: WhisperSocketError? = nil) {
+        let (stream, continuation) = AsyncStream.makeStream(
+            of: WhisperSocketLifecycleEvent.self,
+            bufferingPolicy: .bufferingNewest(16)
+        )
         self.connectError = connectError
+        self.lifecycleStream = stream
+        self.lifecycleContinuation = continuation
     }
 
     public func connect(token: String) async throws {
-        if let connectError { throw connectError }
+        if let connectError {
+            lifecycleContinuation.yield(.failed(String(describing: connectError)))
+            throw connectError
+        }
         connectedToken = token
+        lifecycleContinuation.yield(.connected)
     }
 
     public func disconnect() async {
         connectedToken = nil
+        lifecycleContinuation.yield(.disconnected("fixture disconnect"))
+    }
+
+    public func lifecycleEvents() async -> AsyncStream<WhisperSocketLifecycleEvent> {
+        lifecycleStream
     }
 
     public func setConnectError(_ error: WhisperSocketError?) {

@@ -46,6 +46,13 @@ struct WhisperContractTests {
         #expect(WhisperSocketEvent.sharedSet.rawValue == "shared:set")
     }
 
+    @Test("socket token stays in the CONNECT auth payload")
+    func socketAuthenticationPayload() {
+        let authentication = WhisperSocketAuthentication(token: "fixture-token-not-valid")
+
+        #expect(authentication.payload == ["token": "fixture-token-not-valid"])
+    }
+
     @Test("bootstrap refuses to run before login establishes a token")
     func bootstrapRequiresToken() async throws {
         let baseURL = try #require(URL(string: "https://example.invalid"))

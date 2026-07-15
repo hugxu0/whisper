@@ -1,0 +1,32 @@
+name: Whisper
+
+options:
+  deploymentTarget:
+    iOS: "17.0"
+
+packages:
+  WhisperCore:
+    path: .
+
+targets:
+  Whisper:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+    dependencies:
+      - package: WhisperCore
+        product: WhisperApp
+      - package: WhisperCore
+        product: WhisperDomain
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.whisper.ios
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: 6.0
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Whisper
+        INFOPLIST_KEY_WhisperAPIBaseURL: "https://hoo66.top"
+        SUPPORTS_MACCATALYST: NO
+    scheme: {}
