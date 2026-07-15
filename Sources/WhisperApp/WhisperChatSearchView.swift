@@ -57,7 +57,7 @@ struct WhisperChatSearchView: View {
                 }
             }
             .navigationTitle("搜索消息")
-            .navigationBarTitleDisplayMode(.inline)
+            .whisperSearchNavigationStyle()
             .searchable(text: $query, prompt: "关键词")
             .onSubmit(of: .search) { searchRequestID &+= 1 }
             .toolbar {
@@ -79,6 +79,17 @@ struct WhisperChatSearchView: View {
     private func messageDate(_ message: WhisperMessage) -> Date {
         let raw = Double(message.ts)
         return Date(timeIntervalSince1970: raw > 10_000_000_000 ? raw / 1_000 : raw)
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func whisperSearchNavigationStyle() -> some View {
+        #if os(iOS)
+        self.navigationBarTitleDisplayMode(.inline)
+        #else
+        self
+        #endif
     }
 }
 #endif

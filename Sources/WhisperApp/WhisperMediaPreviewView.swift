@@ -16,7 +16,11 @@ struct WhisperMediaPreviewView: View {
         self.media = media
         self.kind = kind
         let url = Self.resolve(media.url)
-        _player = State(initialValue: (kind == .video || kind == .voice) ? url.map(AVPlayer.init(url:)) : nil)
+        _player = State(
+            initialValue: (kind == .video || kind == .voice)
+                ? url.map { AVPlayer(url: $0) }
+                : nil
+        )
     }
 
     var body: some View {
@@ -26,8 +30,7 @@ struct WhisperMediaPreviewView: View {
                 previewContent
             }
             .navigationTitle(previewTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .whisperMediaPreviewNavigationStyle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("关闭") { dismiss() }
@@ -104,6 +107,19 @@ struct WhisperMediaPreviewView: View {
         if let url = URL(string: rawValue), url.scheme != nil { return url }
         guard let baseURL = URL(string: "https://hoo66.top") else { return nil }
         return URL(string: rawValue, relativeTo: baseURL)?.absoluteURL
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func whisperMediaPreviewNavigationStyle() -> some View {
+        #if os(iOS)
+        self
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+        #else
+        self
+        #endif
     }
 }
 #endif

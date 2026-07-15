@@ -71,23 +71,29 @@ struct WhisperChatAccessoryPanel: View {
     private var attachmentGrid: some View {
         HStack(spacing: 12) {
             PhotosPicker(selection: $mediaSelection, matching: .any(of: [.images, .videos])) {
-                attachmentTile(icon: "photo.on.rectangle.angled", title: "照片/视频")
+                WhisperAttachmentTile(icon: "photo.on.rectangle.angled", title: "照片/视频")
             }
             .buttonStyle(.plain)
 
             PhotosPicker(selection: $stickerSelection, matching: .images) {
-                attachmentTile(icon: "face.smiling.inverse", title: "图片表情")
+                WhisperAttachmentTile(icon: "face.smiling", title: "图片表情")
             }
             .buttonStyle(.plain)
 
             Button(action: onFile) {
-                attachmentTile(icon: "doc.fill", title: "文件")
+                WhisperAttachmentTile(icon: "doc.fill", title: "文件")
             }
             .buttonStyle(.plain)
         }
     }
 
-    private func attachmentTile(icon: String, title: String) -> some View {
+}
+
+private struct WhisperAttachmentTile: View {
+    let icon: String
+    let title: String
+
+    var body: some View {
         VStack(spacing: 7) {
             Image(systemName: icon)
                 .font(.system(size: 24, weight: .semibold))
