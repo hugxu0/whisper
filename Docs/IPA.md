@@ -1,5 +1,13 @@
 # 真机 IPA 构建
 
+## 当前 CI 可直接下载的未签名包
+
+现有的 **iOS CI** 在 Simulator 构建通过后，还会执行一次 `generic/platform=iOS` 的未签名 archive，并把 `Whisper-unsigned.ipa` 上传为 Artifact。这个包可以在不配置 Apple secrets 的情况下下载，适合你自己在 Windows 或其他签名环境中重签。
+
+未签名包不能直接安装到 iPhone；重签时仍然需要与你的 Team、Bundle ID `com.whisper.ios` 和设备 UDID 匹配的证书及 provisioning profile。
+
+## 签名包工作流
+
 `.github/workflows/ios-ipa.yml` 会在 GitHub 的 macOS runner 上归档并导出签名 IPA。它只支持手动触发，避免公开仓库的普通 PR 在没有签名材料时失败。
 
 ## 必需的 GitHub Actions secrets
