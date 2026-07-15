@@ -74,6 +74,8 @@ public final class WhisperSessionController {
     private let socket: any WhisperSocketClient
     @ObservationIgnored
     private var attempt = 0
+    @ObservationIgnored
+    private var sessionToken: String?
 
     public init(
         api: any WhisperSessionAPI,
@@ -88,6 +90,7 @@ public final class WhisperSessionController {
     public func start(request: WhisperLoginRequest) async {
         attempt &+= 1
         let currentAttempt = attempt
+        sessionToken = nil
         state.isLoading = true
         state.lastError = nil
         state.connection = .connecting
@@ -101,6 +104,7 @@ public final class WhisperSessionController {
                 username: login.username,
                 name: login.name
             )
+            sessionToken = login.token
             state.bootstrap = try await api.bootstrap()
             try ensureCurrent(currentAttempt)
             try Task.checkCancellation()
@@ -127,6 +131,33 @@ public final class WhisperSessionController {
         await start(request: request)
     }
 
+    public func reconnect() async {
+        guard let sessionToken else { return }
+
+        attempt &+= 1
+        let currentAttempt = attempt
+        state.isLoading = true
+        state.lastError = nil
+        state.connection = .connecting
+
+        do {
+            try await socket.connect(token: sessionToken)
+            try ensureCurrent(currentAttempt)
+            try Task.checkCancellation()
+            state.isLoading = false
+            state.connection = .connected
+        } catch is CancellationError {
+            guard currentAttempt == attempt else { return }
+            state.isLoading = false
+            state.connection = .idle
+        } catch {
+            guard currentAttempt == attempt else { return }
+            state.isLoading = false
+            state.lastError = String(describing: error)
+            state.connection = .failed(String(describing: error))
+        }
+    }
+
     public func monitorConnection() async {
         let events = await socket.lifecycleEvents()
         for await event in events {
@@ -148,6 +179,7 @@ public final class WhisperSessionController {
 
     public func stop() async {
         attempt &+= 1
+        sessionToken = nil
         await socket.disconnect()
         state.isLoading = false
         state.connection = .idle

@@ -69,12 +69,23 @@ public struct WhisperLoginResponse: Codable, Equatable, Sendable {
 public struct WhisperReadStates: Codable, Equatable, Sendable {
     public let couple: [String: Int64]
     public let ai: [String: Int64]
+
+    public init(couple: [String: Int64] = [:], ai: [String: Int64] = [:]) {
+        self.couple = couple
+        self.ai = ai
+    }
 }
 
 public struct WhisperSharedStateEntry: Codable, Equatable, Sendable {
     public let value: WhisperJSONValue
     public let updatedBy: String
     public let updatedAt: Int64
+
+    public init(value: WhisperJSONValue, updatedBy: String, updatedAt: Int64) {
+        self.value = value
+        self.updatedBy = updatedBy
+        self.updatedAt = updatedAt
+    }
 }
 
 public struct WhisperSharedUpdate: Codable, Equatable, Sendable {
