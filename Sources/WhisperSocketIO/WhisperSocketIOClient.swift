@@ -138,10 +138,9 @@ public final class WhisperSocketIOClient: @unchecked Sendable, WhisperSocketMess
     }
 
     public func sendMessage(_ message: WhisperMessageSend) async throws -> WhisperMessageSendAck {
-        let payload = try Self.encodeObject(message)
         return try await emitWithAcknowledgement(
             event: .messageSend,
-            payload: payload,
+            payload: message,
             response: WhisperMessageSendAck.self
         )
     }
@@ -149,7 +148,7 @@ public final class WhisperSocketIOClient: @unchecked Sendable, WhisperSocketMess
     public func recallMessage(id: String) async throws -> WhisperRecallAcknowledgement {
         try await emitWithAcknowledgement(
             event: .messageRecall,
-            payload: ["id": id],
+            payload: WhisperRecallRequest(id: id),
             response: WhisperRecallAcknowledgement.self
         )
     }
@@ -161,17 +160,18 @@ public final class WhisperSocketIOClient: @unchecked Sendable, WhisperSocketMess
     ) async throws -> WhisperSearchAcknowledgement {
         try await emitWithAcknowledgement(
             event: .messagesSearch,
-            payload: [
-                "channel": channel.rawValue,
-                "query": query,
-                "limit": min(max(limit, 1), 100)
-            ],
+            payload: WhisperSearchRequest(
+                channel: channel,
+                query: query,
+                limit: min(max(limit, 1), 100)
+            ),
             response: WhisperSearchAcknowledgement.self
         )
     }
 
     public func markRead(channel: WhisperChannel, timestamp: Int64) async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<Void, any Error>) in
             handleQueue.async { [self] in
                 guard let socket else {
                     continuation.resume(
@@ -190,11 +190,12 @@ public final class WhisperSocketIOClient: @unchecked Sendable, WhisperSocketMess
         }
     }
 
-    private func emitWithAcknowledgement<Response: Decodable & Sendable>(
+    private func emitWithAcknowledgement<Payload: Encodable & Sendable, Response: Decodable & Sendable>(
         event: WhisperSocketEvent,
-        payload: [String: Any],
+        payload: Payload,
         response: Response.Type
     ) async throws -> Response {
+        let payloadData = try JSONEncoder().encode(payload)
         let acknowledgements = AsyncThrowingStream<Response, Error> { continuation in
             handleQueue.async { [self] in
                 guard let socket else {
@@ -205,9 +206,15 @@ public final class WhisperSocketIOClient: @unchecked Sendable, WhisperSocketMess
                     )
                     return
                 }
+                guard let payloadObject = try? JSONSerialization.jsonObject(with: payloadData),
+                      let payloadObject = payloadObject as? [String: Any]
+                else {
+                    continuation.finish(throwing: WhisperSocketError.invalidPayload)
+                    return
+                }
 
                 socket
-                    .emitWithAck(event.rawValue, payload)
+                    .emitWithAck(event.rawValue, payloadObject)
                     .timingOut(after: 15) { data in
                         if let status = data.first as? String,
                            status == SocketAckStatus.noAck {
@@ -244,14 +251,6 @@ public final class WhisperSocketIOClient: @unchecked Sendable, WhisperSocketMess
         manager = nil
     }
 
-    private static func encodeObject<Value: Encodable>(_ value: Value) throws -> [String: Any] {
-        let data = try JSONEncoder().encode(value)
-        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw WhisperSocketError.invalidPayload
-        }
-        return object
-    }
-
     private static func decodeAcknowledgement<Response: Decodable>(
         _ data: [Any],
         as response: Response.Type
@@ -286,4 +285,14 @@ public final class WhisperSocketIOClient: @unchecked Sendable, WhisperSocketMess
         guard values.isEmpty == false else { return "unknown Socket.IO error" }
         return values.map { String(describing: $0) }.joined(separator: ", ")
     }
+}
+
+private struct WhisperRecallRequest: Codable, Sendable {
+    let id: String
+}
+
+private struct WhisperSearchRequest: Codable, Sendable {
+    let channel: WhisperChannel
+    let query: String
+    let limit: Int
 }
