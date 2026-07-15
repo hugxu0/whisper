@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "list": [
+    {
+      "id": "msg_fixture_001",
+      "sender": "xu",
+      "senderName": "小旭",
+      "kind": "user",
+      "type": "text",
+      "text": "fixture message",
+      "url": null,
+      "replyTo": null,
+      "replyPreview": null,
+      "reply": null,
+      "meta": null,
+      "attachments": null,
+      "recalledText": null,
+      "channel": "couple",
+      "ts": 1700000000000,
+      "clientId": "client_fixture_001"
+    }
+  ],
+  "total": 1
+}

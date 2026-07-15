@@ -1,0 +1,12 @@
+{
+  "channel": "couple",
+  "type": "text",
+  "text": "fixture send",
+  "url": null,
+  "uploadId": null,
+  "replyTo": null,
+  "replyPreview": null,
+  "attachments": null,
+  "meta": null,
+  "clientId": "client_fixture_send_001"
+}

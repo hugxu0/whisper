@@ -1,0 +1,54 @@
+{
+  "ok": true,
+  "serverTime": 1700000000000,
+  "accounts": [
+    {
+      "username": "xu",
+      "name": "小旭",
+      "avatar": "https://example.invalid/fixture-avatar-xu.png"
+    },
+    {
+      "username": "si",
+      "name": "小偲",
+      "avatar": "https://example.invalid/fixture-avatar-si.png"
+    }
+  ],
+  "messages": {
+    "couple": [
+      {
+        "id": "msg_fixture_001",
+        "sender": "xu",
+        "senderName": "小旭",
+        "kind": "user",
+        "type": "text",
+        "text": "fixture message",
+        "url": null,
+        "replyTo": null,
+        "replyPreview": null,
+        "reply": null,
+        "meta": null,
+        "attachments": null,
+        "recalledText": null,
+        "channel": "couple",
+        "ts": 1700000000000,
+        "clientId": "client_fixture_001"
+      }
+    ],
+    "ai": []
+  },
+  "readStates": {
+    "couple": {
+      "xu": 1700000000000
+    },
+    "ai": {}
+  },
+  "sharedState": {
+    "dates": {
+      "value": {
+        "together": "2020-01-01"
+      },
+      "updatedBy": "xu",
+      "updatedAt": 1700000000000
+    }
+  }
+}

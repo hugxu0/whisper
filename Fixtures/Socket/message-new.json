@@ -1,0 +1,18 @@
+{
+  "id": "msg_fixture_002",
+  "sender": "si",
+  "senderName": "小偲",
+  "kind": "user",
+  "type": "text",
+  "text": "fixture receive",
+  "url": null,
+  "replyTo": null,
+  "replyPreview": null,
+  "reply": null,
+  "meta": null,
+  "attachments": null,
+  "recalledText": null,
+  "channel": "couple",
+  "ts": 1700000001000,
+  "clientId": "client_fixture_receive_001"
+}

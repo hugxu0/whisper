@@ -1,0 +1,26 @@
+{
+  "protocolVersion": 2,
+  "events": [
+    {
+      "seq": 42,
+      "entityType": "message",
+      "entityId": "msg_fixture_001",
+      "operation": "upsert",
+      "version": 1,
+      "payload": {
+        "id": "msg_fixture_001",
+        "sender": "xu",
+        "senderName": "小旭",
+        "kind": "user",
+        "type": "text",
+        "text": "fixture message",
+        "channel": "couple",
+        "ts": 1700000000000,
+        "clientId": "client_fixture_001"
+      },
+      "createdAt": 1700000000000
+    }
+  ],
+  "nextCursor": 42,
+  "hasMore": false
+}

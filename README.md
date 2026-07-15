@@ -6,7 +6,10 @@ This repository is intentionally independent from the legacy implementation. The
 
 ## Current status
 
-Repository bootstrap only. No product source code has been copied from the legacy project.
+The repository now contains a clean-slate Swift package boundary, synthetic
+API/Socket fixtures, and the first contract tests. No product source code has
+been copied from the legacy project, and no live server request is made by the
+test suite.
 
 ## Rewrite rules
 
@@ -18,5 +21,5 @@ Repository bootstrap only. No product source code has been copied from the legac
 
 ## Next milestone
 
-Create the product behavior brief, protocol fixtures, and target architecture before implementing the first feature.
-
+Implement the fixture-backed login/bootstrap vertical slice with injected HTTP
+and Socket clients. Keep the retained server paths and event names unchanged.
