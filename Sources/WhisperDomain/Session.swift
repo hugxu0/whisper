@@ -120,10 +120,12 @@ public struct WhisperBootstrapResponse: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let rawMessages = try container.decode([String: [WhisperMessage]].self, forKey: .messages)
-        let messages = Dictionary(uniqueKeysWithValues: rawMessages.compactMap { key, value in
-            guard let channel = WhisperChannel(rawValue: key) else { return nil }
-            return (channel, value)
-        })
+        let messages = rawMessages.reduce(
+            into: [WhisperChannel: [WhisperMessage]]()
+        ) { messages, entry in
+            guard let channel = WhisperChannel(rawValue: entry.key) else { return }
+            messages[channel] = entry.value
+        }
 
         self.init(
             ok: try container.decode(Bool.self, forKey: .ok),

@@ -1,0 +1,75 @@
+name: iOS CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Show Apple toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Resolve Swift package dependencies
+        run: swift package resolve
+
+      - name: Run Swift package tests
+        run: swift test --parallel
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Resolve Xcode package dependencies
+        run: |
+          xcodebuild \
+            -project Whisper.xcodeproj \
+            -scheme Whisper \
+            -resolvePackageDependencies
+
+      - name: Build for iOS Simulator
+        run: |
+          mkdir -p build-artifacts
+          set -o pipefail
+          xcodebuild \
+            -project Whisper.xcodeproj \
+            -scheme Whisper \
+            -configuration Debug \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build | tee build-artifacts/xcodebuild.log
+
+      - name: Upload failed build log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-build-log
+          path: build-artifacts/xcodebuild.log
+          if-no-files-found: ignore
+          retention-days: 7

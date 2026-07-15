@@ -153,7 +153,8 @@ public final class WhisperSocketIOClient: @unchecked Sendable, WhisperSocketMess
                 socket
                     .emitWithAck(WhisperSocketEvent.messageSend.rawValue, payload)
                     .timingOut(after: 15) { data in
-                        if (data.first as? String) == SocketAckStatus.noAck {
+                        if let status = data.first as? String,
+                           status == SocketAckStatus.noAck {
                             continuation.finish(throwing: WhisperSocketError.acknowledgementTimedOut)
                             return
                         }

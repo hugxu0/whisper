@@ -19,6 +19,21 @@ macOS CI runner.
 - Simulator smoke flows for login, bootstrap, messaging, upload, and reconnect;
 - archive/signing only in the release pipeline.
 
+## GitHub Actions
+
+The repository's [`iOS CI`](../.github/workflows/ios-ci.yml) workflow runs on
+GitHub's `macos-15` runner with Xcode 16.4. It is triggered for changes pushed
+to `main`, pull requests targeting `main`, and manual dispatches from the
+Actions page.
+
+The workflow resolves the Swift package graph, runs the package tests,
+generates `Whisper.xcodeproj` with XcodeGen, and builds the app for a generic
+iOS Simulator destination with code signing disabled. A failed Xcode build
+uploads its log for seven days.
+
+CI remains hermetic: tests use synthetic fixtures and do not contact or mutate
+the production API at `https://hoo66.top`.
+
 The checked-in `project.yml` is the Xcode project source of truth. On macOS:
 
 ```bash

@@ -39,9 +39,14 @@ let package = Package(
                 "WhisperClients",
                 "WhisperFeatures",
                 "WhisperSocketIO"
-            ]
+            ],
+            exclude: ["README.md"]
         ),
         .testTarget(name: "WhisperContractTests", dependencies: ["WhisperDomain", "WhisperClients"]),
-        .testTarget(name: "WhisperFeatureTests", dependencies: ["WhisperDomain", "WhisperClients", "WhisperFeatures"])
+        .testTarget(
+            name: "WhisperFeatureTests",
+            dependencies: ["WhisperDomain", "WhisperClients", "WhisperFeatures"],
+            exclude: ["README.md"]
+        )
     ]
 )
