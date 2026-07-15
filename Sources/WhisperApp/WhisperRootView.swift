@@ -6,18 +6,22 @@ import WhisperFeatures
 @MainActor
 public struct WhisperRootView: View {
     @State private var session: WhisperSessionController
+    @State private var chat: WhisperChatController
     @State private var username = "xu"
     @State private var password = ""
     @State private var pendingRequest: WhisperLoginRequest?
     @State private var attemptID = 0
+    @State private var reconnectID = 0
 
     private let device: WhisperDeviceDescription
 
     public init(
         sessionController: WhisperSessionController,
+        chatController: WhisperChatController,
         device: WhisperDeviceDescription
     ) {
         _session = State(initialValue: sessionController)
+        _chat = State(initialValue: chatController)
         self.device = device
     }
 
@@ -34,8 +38,8 @@ public struct WhisperRootView: View {
             .ignoresSafeArea()
 
             Group {
-                if session.state.connection == .connected {
-                    connectedContent
+                if session.state.bootstrap != nil {
+                    chatContent
                 } else {
                     loginContent
                 }
@@ -45,10 +49,25 @@ public struct WhisperRootView: View {
         .task(id: attemptID) {
             guard let pendingRequest else { return }
             await session.start(request: pendingRequest)
-            if session.state.connection == .connected {
+            if session.state.bootstrap != nil {
                 password = ""
                 self.pendingRequest = nil
             }
+        }
+        .task(id: reconnectID) {
+            guard reconnectID > 0 else { return }
+            await session.reconnect()
+        }
+        .task(id: session.state.bootstrap?.serverTime) {
+            guard let bootstrap = session.state.bootstrap,
+                  let account = session.state.account
+            else { return }
+            chat.load(
+                bootstrap: bootstrap,
+                username: account.username,
+                accountName: account.name
+            )
+            await chat.monitorEvents()
         }
         .task {
             await session.monitorConnection()
@@ -109,28 +128,15 @@ public struct WhisperRootView: View {
         .frame(maxWidth: 440)
     }
 
-    private var connectedContent: some View {
-        VStack(spacing: 18) {
-            Text("Whisper")
-                .font(.system(size: 36, weight: .semibold, design: .rounded))
-            Text("已连接")
-                .font(.headline)
-                .foregroundStyle(.green)
-            Text(session.state.account?.name ?? session.state.account?.username ?? "")
-                .font(.title3)
-            Text("已载入 \(messageCount) 条消息，聊天界面将在下一个切片接入。")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+    @ViewBuilder
+    private var chatContent: some View {
+        if session.state.account != nil {
+            WhisperChatView(
+                controller: chat,
+                connection: session.state.connection,
+                onReconnect: { reconnectID &+= 1 }
+            )
         }
-        .foregroundStyle(.white)
-        .padding(28)
-        .frame(maxWidth: 440)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 28))
-    }
-
-    private var messageCount: Int {
-        session.state.bootstrap?.messages.values.reduce(0) { $0 + $1.count } ?? 0
     }
 
     private func submit() {

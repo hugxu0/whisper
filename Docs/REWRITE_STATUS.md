@@ -11,13 +11,16 @@
   session state and injectable clients.
 - SwiftUI composition root, XcodeGen application target, and Socket.IO v4
   adapter added behind the retained realtime boundary.
+- Chat timeline slice added with bootstrap history, channel switching, pending
+  text sends, authoritative ACK replacement, retryable failures, and
+  `message:new` / `message:update` event consumption.
+- Public GitHub Actions macOS CI now runs Swift tests and an unsigned iOS
+  Simulator build.
 
 ## Not started yet
 
-- macOS generation of the Xcode project and first Simulator build.
-- Chat timeline, pending outbox, and consumption of Socket.IO message events.
-- Local persistence, outbox, media pipeline, and feature UI.
-- macOS CI build and Simulator verification.
+- Message pagination and reconnect synchronization.
+- Local persistence, durable outbox, media pipeline, and feature UI polish.
 
 ## Guardrail
 

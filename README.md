@@ -23,5 +23,5 @@ live server request is made by the test suite.
 
 ## Next milestone
 
-Generate and compile the Xcode project on macOS, then implement the first chat
-timeline slice using the existing `message:new` and `message:send` contracts.
+Extend the chat timeline with message pagination and reconnect synchronization,
+then add the durable outbox and media pipeline behind the existing contracts.

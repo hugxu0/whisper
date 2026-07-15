@@ -19,6 +19,7 @@ struct WhisperApplication: App {
         WindowGroup {
             WhisperRootView(
                 sessionController: dependencies.sessionController,
+                chatController: dependencies.chatController,
                 device: device
             )
         }

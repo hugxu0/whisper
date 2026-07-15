@@ -123,4 +123,9 @@ public struct WhisperMessageSend: Codable, Equatable, Sendable {
 public struct WhisperMessageSendAck: Codable, Equatable, Sendable {
     public let ok: Bool
     public let message: WhisperMessage
+
+    public init(ok: Bool, message: WhisperMessage) {
+        self.ok = ok
+        self.message = message
+    }
 }
