@@ -56,32 +56,41 @@ public struct WhisperMainTabView: View {
                 .navigationDestination(isPresented: $showChatDetail) {
                     WhisperChatView(
                         controller: chat,
+                        currentAccount: currentAccount,
+                        partnerAccount: partnerAccount,
                         connection: session.state.connection,
                         onReconnect: onReconnect
                     )
                 }
             }
             .tag(WhisperMainTab.chat)
+            .tabItem {
+                Label(WhisperMainTab.chat.rawValue, systemImage: WhisperMainTab.chat.icon)
+            }
 
             placeholderTab(.moments)
                 .tag(WhisperMainTab.moments)
+                .tabItem {
+                    Label(WhisperMainTab.moments.rawValue, systemImage: WhisperMainTab.moments.icon)
+                }
             placeholderTab(.pet)
                 .tag(WhisperMainTab.pet)
+                .tabItem {
+                    Label(WhisperMainTab.pet.rawValue, systemImage: WhisperMainTab.pet.icon)
+                }
             placeholderTab(.plans)
                 .tag(WhisperMainTab.plans)
+                .tabItem {
+                    Label(WhisperMainTab.plans.rawValue, systemImage: WhisperMainTab.plans.icon)
+                }
+                .badge(1)
             placeholderTab(.account)
                 .tag(WhisperMainTab.account)
+                .tabItem {
+                    Label(WhisperMainTab.account.rawValue, systemImage: WhisperMainTab.account.icon)
+                }
         }
-        #if os(iOS)
-        .toolbar(.hidden, for: .tabBar)
-        #endif
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if showChatDetail == false {
-                WhisperBottomBar(selection: $selectedTab)
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 7)
-            }
-        }
+        .tint(WhisperVisualTheme.pink)
         .background(WhisperWarmBackground())
         .onChange(of: selectedTab) { _, newTab in
             if newTab != .chat {
@@ -91,7 +100,10 @@ public struct WhisperMainTabView: View {
     }
 
     private var currentAccount: WhisperAccount {
-        session.state.account
+        session.state.bootstrap?.accounts.first(where: {
+            $0.username == session.state.account?.username
+        })
+            ?? session.state.account
             ?? WhisperAccount(username: "xu", name: "小旭", avatar: nil)
     }
 
@@ -110,55 +122,6 @@ public struct WhisperMainTabView: View {
         NavigationStack {
             WhisperPlaceholderView(tab: tab)
         }
-    }
-}
-
-private struct WhisperBottomBar: View {
-    @Binding var selection: WhisperMainTab
-
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(WhisperMainTab.allCases) { tab in
-                Button {
-                    selection = tab
-                } label: {
-                    VStack(spacing: 4) {
-                        ZStack(alignment: .topTrailing) {
-                            Image(systemName: tab.icon)
-                                .font(.system(size: 22, weight: .semibold))
-                            if tab == .plans {
-                                Text("1")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 17, height: 17)
-                                    .background(WhisperVisualTheme.pink, in: Circle())
-                                    .offset(x: 11, y: -8)
-                            }
-                        }
-                        Text(tab.rawValue)
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                    .foregroundStyle(
-                        selection == tab ? WhisperVisualTheme.pink : WhisperVisualTheme.ink
-                    )
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 58)
-                    .background(
-                        selection == tab
-                            ? WhisperVisualTheme.softPink.opacity(0.68)
-                            : .clear,
-                        in: Capsule()
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(tab.rawValue)
-                .accessibilityAddTraits(selection == tab ? .isSelected : [])
-            }
-        }
-        .padding(7)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().stroke(Color.white.opacity(0.84), lineWidth: 1))
-        .shadow(color: .black.opacity(0.10), radius: 18, y: 7)
     }
 }
 

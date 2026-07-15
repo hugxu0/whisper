@@ -12,6 +12,10 @@ enum WhisperVisualTheme {
     static let ink = Color(red: 0.15, green: 0.13, blue: 0.16)
     static let mutedInk = Color(red: 0.42, green: 0.37, blue: 0.42)
     static let hairline = Color.black.opacity(0.07)
+    static let chatRose = Color(red: 0.96, green: 0.22, blue: 0.47)
+    static let chatBlush = Color(red: 1.00, green: 0.91, blue: 0.94)
+    static let chatLavender = Color(red: 0.96, green: 0.91, blue: 1.00)
+    static let chatButter = Color(red: 1.00, green: 0.97, blue: 0.83)
 
     static let titleGradient = LinearGradient(
         colors: [blue, purple],
@@ -84,6 +88,46 @@ struct WhisperAvatarView: View {
         Text(fallback)
             .font(.system(size: size * 0.42))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func whisperGlass<GlassShape: Shape>(
+        in shape: GlassShape,
+        tint: Color? = nil,
+        interactive: Bool = false
+    ) -> some View {
+        #if os(iOS)
+        if #available(iOS 26.0, *) {
+            let effect = interactive
+                ? Glass.regular.tint(tint).interactive()
+                : Glass.regular.tint(tint)
+            self.glassEffect(effect, in: shape)
+        } else {
+            self.whisperMaterialFallback(in: shape)
+        }
+        #else
+        self.whisperMaterialFallback(in: shape)
+        #endif
+    }
+
+    private func whisperMaterialFallback<GlassShape: Shape>(
+        in shape: GlassShape
+    ) -> some View {
+        self
+            .background(.ultraThinMaterial, in: shape)
+            .overlay(shape.stroke(Color.white.opacity(0.72), lineWidth: 1))
+            .shadow(color: Color.black.opacity(0.08), radius: 14, y: 6)
+    }
+
+    @ViewBuilder
+    func whisperInteractiveKeyboardDismissal() -> some View {
+        #if os(iOS)
+        self.scrollDismissesKeyboard(.interactively)
+        #else
+        self
+        #endif
     }
 }
 #endif
