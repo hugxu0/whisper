@@ -12,11 +12,58 @@ public struct WhisperAccount: Codable, Equatable, Sendable {
     }
 }
 
+public struct WhisperDeviceDescription: Codable, Equatable, Sendable {
+    public let installationId: String
+    public let platform: String
+    public let deviceName: String
+    public let appVersion: String
+    public let buildNumber: String
+    public let locale: String
+    public let timezone: String
+
+    public init(
+        installationId: String,
+        platform: String = "ios",
+        deviceName: String,
+        appVersion: String,
+        buildNumber: String,
+        locale: String,
+        timezone: String
+    ) {
+        self.installationId = installationId
+        self.platform = platform
+        self.deviceName = deviceName
+        self.appVersion = appVersion
+        self.buildNumber = buildNumber
+        self.locale = locale
+        self.timezone = timezone
+    }
+}
+
+public struct WhisperLoginRequest: Codable, Equatable, Sendable {
+    public let username: String
+    public let password: String
+    public let device: WhisperDeviceDescription
+
+    public init(username: String, password: String, device: WhisperDeviceDescription) {
+        self.username = username
+        self.password = password
+        self.device = device
+    }
+}
+
 public struct WhisperLoginResponse: Codable, Equatable, Sendable {
     public let token: String
     public let username: String
     public let name: String
     public let deviceId: String
+
+    public init(token: String, username: String, name: String, deviceId: String) {
+        self.token = token
+        self.username = username
+        self.name = name
+        self.deviceId = deviceId
+    }
 }
 
 public struct WhisperReadStates: Codable, Equatable, Sendable {

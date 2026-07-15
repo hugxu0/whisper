@@ -7,9 +7,9 @@ This repository is intentionally independent from the legacy implementation. The
 ## Current status
 
 The repository now contains a clean-slate Swift package boundary, synthetic
-API/Socket fixtures, and the first contract tests. No product source code has
-been copied from the legacy project, and no live server request is made by the
-test suite.
+API/Socket fixtures, injectable HTTP/Socket clients, and the first
+login→Bootstrap→connection state slice. No product source code has been copied
+from the legacy project, and no live server request is made by the test suite.
 
 ## Rewrite rules
 
@@ -21,5 +21,6 @@ test suite.
 
 ## Next milestone
 
-Implement the fixture-backed login/bootstrap vertical slice with injected HTTP
-and Socket clients. Keep the retained server paths and event names unchanged.
+Add the iOS/Xcode composition root and replace only the fixture transport with
+the real Socket.IO implementation behind the same client protocols. Keep the
+retained server paths and event names unchanged.

@@ -46,6 +46,28 @@ struct WhisperContractTests {
         #expect(WhisperSocketEvent.sharedSet.rawValue == "shared:set")
     }
 
+    @Test("bootstrap refuses to run before login establishes a token")
+    func bootstrapRequiresToken() async throws {
+        let baseURL = try #require(URL(string: "https://example.invalid"))
+        let transport = WhisperStubHTTPClient(responses: [:])
+        let api = WhisperAPIClient(
+            transport: transport,
+            configuration: WhisperAPIConfiguration(baseURL: baseURL)
+        )
+
+        do {
+            _ = try await api.bootstrap()
+            Issue.record("Bootstrap unexpectedly ran without a token")
+        } catch let error as WhisperAPIError {
+            #expect(error == .missingToken)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+
+        let requests = await transport.requests()
+        #expect(requests.isEmpty)
+    }
+
     @Test("send ack is authoritative and carries the client id")
     func sendAckDecoding() throws {
         let data = Data(#"{"ok":true,"message":{"id":"msg_fixture_003","sender":"xu","senderName":"小旭","kind":"user","type":"text","text":"fixture send","url":null,"replyTo":null,"replyPreview":null,"reply":null,"meta":null,"attachments":null,"recalledText":null,"channel":"couple","ts":1700000002000,"clientId":"client_fixture_send_001"}}"#.utf8)
