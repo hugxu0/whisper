@@ -19,5 +19,6 @@ App/Info.plist
 
 # Generated or local-only artifacts
 artifacts/
+Builds/
 *.ipa
 *.xcarchive/
