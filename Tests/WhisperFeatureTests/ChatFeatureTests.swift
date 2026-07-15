@@ -19,6 +19,7 @@ struct ChatFeatureTests {
                     ],
                     .ai: [message(id: "private", sender: "xu", channel: .ai, ts: 1_500)]
                 ],
+                readStatesByChannel: [:],
                 currentUsername: "xu",
                 currentAccountName: "小旭"
             )
@@ -131,6 +132,195 @@ struct ChatFeatureTests {
         #expect(controller.state.visibleEntries[0].message.text == "收到")
     }
 
+    @Test("message presentation distinguishes emoji stickers and attachments")
+    func messagePresentationClassification() {
+        let emoji = message(id: "emoji", sender: "xu", text: "🥰", ts: 1_000)
+        let compatibilitySticker = message(
+            id: "sticker",
+            sender: "si",
+            text: "[表情]",
+            ts: 2_000
+        )
+        let image = WhisperMessage(
+            id: "image",
+            sender: "si",
+            type: .image,
+            text: "照片",
+            url: "/media/image",
+            channel: .couple,
+            ts: 3_000
+        )
+
+        #expect(WhisperMessagePresentation(message: emoji).kind == .emoji)
+        #expect(WhisperMessagePresentation(message: compatibilitySticker).kind == .sticker)
+        #expect(WhisperMessagePresentation(message: image).kind == .image)
+        #expect(WhisperMessagePresentation(message: image).media.first?.url == "/media/image")
+    }
+
+    @Test("older page prepends messages and preserves server total")
+    @MainActor
+    func olderPageLoadsBeforeCurrentWindow() async throws {
+        let bootstrapMessages = (1...40).map { index in
+            message(id: "m\(index)", sender: "si", ts: Int64(index * 1_000))
+        }
+        let older = message(id: "older", sender: "si", ts: 500)
+        let api = WhisperStubChatAPI(
+            messagePages: [WhisperMessagePage(ok: true, list: [older], total: 41)]
+        )
+        let controller = WhisperChatController(socket: WhisperStubSocketClient(), api: api)
+        controller.load(
+            bootstrap: bootstrap(messages: [.couple: bootstrapMessages]),
+            username: "xu",
+            accountName: "小旭"
+        )
+
+        await controller.loadEarlier()
+
+        #expect(controller.state.visibleEntries.first?.message.id == "older")
+        #expect(controller.state.hasEarlierMessages == false)
+        let request = try #require(await api.recordedMessageRequests().first)
+        #expect(request.before == 1_000)
+        #expect(request.channel == .couple)
+    }
+
+    @Test("sync applies upserts and deletes then acknowledges cursor")
+    @MainActor
+    func reconnectSyncConverges() async throws {
+        let existing = message(id: "existing", sender: "si", ts: 1_000)
+        let incoming = message(id: "incoming-sync", sender: "si", text: "同步", ts: 2_000)
+        let value = try jsonValue(incoming)
+        let api = WhisperStubChatAPI(
+            syncPages: [
+                WhisperSyncPage(
+                    protocolVersion: 2,
+                    events: [
+                        WhisperSyncEvent(
+                            seq: 1,
+                            entityType: "message",
+                            entityId: existing.id,
+                            operation: "delete",
+                            version: 1,
+                            payload: .null,
+                            createdAt: 2_000
+                        ),
+                        WhisperSyncEvent(
+                            seq: 2,
+                            entityType: "message",
+                            entityId: incoming.id,
+                            operation: "upsert",
+                            version: 1,
+                            payload: value,
+                            createdAt: 2_000
+                        )
+                    ],
+                    nextCursor: 2,
+                    hasMore: false
+                )
+            ]
+        )
+        let controller = WhisperChatController(socket: WhisperStubSocketClient(), api: api)
+        controller.load(
+            bootstrap: bootstrap(messages: [.couple: [existing]]),
+            username: "xu",
+            accountName: "小旭"
+        )
+
+        await controller.synchronize()
+
+        #expect(controller.state.visibleEntries.map(\.message.id) == ["incoming-sync"])
+        #expect(controller.state.syncCursor == 2)
+        #expect(await api.recordedAcknowledgedCursors() == [2])
+    }
+
+    @Test("media upload precedes authoritative message send")
+    @MainActor
+    func mediaUploadThenSend() async {
+        let authoritative = WhisperMessage(
+            id: "server-image",
+            sender: "xu",
+            type: .image,
+            url: "/media/up_fixture_image_001",
+            channel: .couple,
+            ts: 2_000,
+            clientId: "media-client"
+        )
+        let socket = WhisperStubSocketClient(
+            acknowledgement: WhisperMessageSendAck(ok: true, message: authoritative)
+        )
+        let api = WhisperStubChatAPI(
+            uploadResult: WhisperUploadResult(
+                id: "up_fixture_image_001",
+                url: "/media/up_fixture_image_001",
+                mimeType: "image/jpeg",
+                size: 4,
+                type: "image"
+            )
+        )
+        let controller = WhisperChatController(
+            socket: socket,
+            api: api,
+            idGenerator: { "media-client" },
+            clock: { 1_000 }
+        )
+        controller.load(
+            bootstrap: bootstrap(messages: [:]),
+            username: "xu",
+            accountName: "小旭"
+        )
+
+        await controller.sendMedia(
+            WhisperMediaUpload(data: Data([0xFF, 0xD8, 0xFF, 0xD9]), filename: "photo.jpg", mimeType: "image/jpeg"),
+            as: .image
+        )
+
+        #expect(await api.recordedUploads().count == 1)
+        #expect(await socket.sentMessageRequests().first?.uploadId == "up_fixture_image_001")
+        #expect(controller.state.visibleEntries.first?.message.id == "server-image")
+    }
+
+    @Test("recall event removes the original message and read receipt advances")
+    @MainActor
+    func recallAndReadEventsAreConsumed() async throws {
+        let original = message(id: "recall-me", sender: "xu", ts: 1_000)
+        var state = WhisperChatState(
+            currentUsername: "xu",
+            messagesByChannel: [
+                .couple: [WhisperChatEntry(localID: original.id, message: original, delivery: .sent)]
+            ]
+        )
+        WhisperChatFeature.reduce(
+            state: &state,
+            action: .socketEvent(
+                WhisperSocketEventEnvelope(
+                    name: WhisperSocketEvent.messageRecalled.rawValue,
+                    arguments: [try jsonValue(
+                        WhisperMessageRecalledEvent(
+                            id: original.id,
+                            channel: .couple,
+                            deleted: true,
+                            syncCursor: 9
+                        )
+                    )]
+                )
+            )
+        )
+        WhisperChatFeature.reduce(
+            state: &state,
+            action: .socketEvent(
+                WhisperSocketEventEnvelope(
+                    name: WhisperSocketEvent.readUpdate.rawValue,
+                    arguments: [try jsonValue(
+                        WhisperReadUpdate(channel: .couple, user: "si", ts: 2_000)
+                    )]
+                )
+            )
+        )
+
+        #expect(state.visibleEntries.isEmpty)
+        #expect(state.syncCursor == 9)
+        #expect(state.readTimestamp(for: "si") == 2_000)
+    }
+
     private func message(
         id: String,
         sender: String,
@@ -163,5 +353,10 @@ struct ChatFeatureTests {
             readStates: WhisperReadStates(),
             sharedState: [:]
         )
+    }
+
+    private func jsonValue<Value: Encodable>(_ value: Value) throws -> WhisperJSONValue {
+        let data = try JSONEncoder().encode(value)
+        return try JSONDecoder().decode(WhisperJSONValue.self, from: data)
     }
 }

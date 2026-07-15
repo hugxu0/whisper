@@ -36,7 +36,26 @@ struct WhisperContractTests {
         #expect(WhisperAPIEndpoint.login.path == "/api/v2/login")
         #expect(WhisperAPIEndpoint.bootstrap.path == "/api/bootstrap")
         #expect(WhisperAPIEndpoint.sync(cursor: nil, limit: 100).path == "/api/v2/sync")
+        #expect(WhisperAPIEndpoint.syncAck.path == "/api/v2/sync/ack")
         #expect(WhisperAPIEndpoint.upload(purpose: .message).queryItems.first?.value == "message")
+    }
+
+    @Test("message pagination keeps exactly one direction")
+    func messagePaginationQuery() {
+        let endpoint = WhisperAPIEndpoint.messages(
+            channel: .couple,
+            since: nil,
+            after: nil,
+            before: 1_700_000_000_000,
+            around: nil,
+            limit: 60
+        )
+        let values = Dictionary(uniqueKeysWithValues: endpoint.queryItems.map { ($0.name, $0.value) })
+
+        #expect(values["channel"] == "couple")
+        #expect(values["before"] == "1700000000000")
+        #expect(values["limit"] == "60")
+        #expect(values["after"] == nil)
     }
 
     @Test("socket event names remain server-compatible")

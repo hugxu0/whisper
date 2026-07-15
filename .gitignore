@@ -6,6 +6,7 @@ build/
 .build/
 build-artifacts/
 Whisper.xcodeproj/
+App/Info.plist
 .swiftpm/
 *.xcuserstate
 *.xcworkspace/xcuserdata/
@@ -18,5 +19,6 @@ Whisper.xcodeproj/
 
 # Generated or local-only artifacts
 artifacts/
+Builds/
 *.ipa
 *.xcarchive/

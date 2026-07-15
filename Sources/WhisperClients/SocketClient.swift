@@ -48,4 +48,11 @@ public struct WhisperSocketEventEnvelope: Codable, Equatable, Sendable {
 public protocol WhisperSocketMessagingClient: WhisperSocketClient {
     func events() async -> AsyncStream<WhisperSocketEventEnvelope>
     func sendMessage(_ message: WhisperMessageSend) async throws -> WhisperMessageSendAck
+    func recallMessage(id: String) async throws -> WhisperRecallAcknowledgement
+    func searchMessages(
+        channel: WhisperChannel,
+        query: String,
+        limit: Int
+    ) async throws -> WhisperSearchAcknowledgement
+    func markRead(channel: WhisperChannel, timestamp: Int64) async throws
 }
