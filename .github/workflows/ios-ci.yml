@@ -62,8 +62,57 @@ jobs:
             -scheme Whisper \
             -configuration Debug \
             -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath "$RUNNER_TEMP/WhisperDerivedData" \
             CODE_SIGNING_ALLOWED=NO \
             clean build | tee build-artifacts/xcodebuild.log
+
+      - name: Capture chat acceptance screenshots
+        run: |
+          set -euo pipefail
+          APP_PATH="$RUNNER_TEMP/WhisperDerivedData/Build/Products/Debug-iphonesimulator/Whisper.app"
+          test -d "$APP_PATH"
+
+          first_device() {
+            local family="$1"
+            xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          family = sys.argv[1]
+          devices = json.load(sys.stdin)["devices"]
+          for runtime in devices.values():
+              for device in runtime:
+                  if family in device["name"] and device.get("isAvailable", False):
+                      print(device["udid"])
+                      raise SystemExit(0)
+          raise SystemExit(1)
+          ' "$family"
+          }
+
+          capture_chat() {
+            local udid="$1"
+            local output="$2"
+            xcrun simctl boot "$udid"
+            xcrun simctl bootstatus "$udid" -b
+            xcrun simctl install "$udid" "$APP_PATH"
+            xcrun simctl status_bar "$udid" override --time 09:41 --batteryState charged --batteryLevel 87
+            xcrun simctl launch "$udid" com.whisper.ios \
+              -WhisperChatAcceptancePreview -WhisperOpenChatDetail
+            sleep 4
+            xcrun simctl io "$udid" screenshot "build-artifacts/$output"
+            xcrun simctl shutdown "$udid"
+          }
+
+          capture_chat "$(first_device iPhone)" chat-iphone.png
+          capture_chat "$(first_device iPad)" chat-ipad.png
+
+      - name: Upload chat acceptance screenshots
+        uses: actions/upload-artifact@v7
+        with:
+          name: chat-acceptance-screenshots-${{ github.run_number }}
+          path: |
+            build-artifacts/chat-iphone.png
+            build-artifacts/chat-ipad.png
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Archive unsigned device app
         run: |

@@ -11,7 +11,9 @@ struct WhisperApplication: App {
     private let device: WhisperDeviceDescription
 
     init() {
-        dependencies = .live(baseURL: AppConfiguration.baseURL)
+        dependencies = ProcessInfo.processInfo.arguments.contains("-WhisperChatAcceptancePreview")
+            ? .chatAcceptancePreview()
+            : .live(baseURL: AppConfiguration.baseURL)
         device = AppConfiguration.deviceDescription
     }
 

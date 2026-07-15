@@ -28,7 +28,7 @@ public struct WhisperMainTabView: View {
     @State private var session: WhisperSessionController
     @State private var chat: WhisperChatController
     @State private var selectedTab: WhisperMainTab = .chat
-    @State private var showChatDetail = false
+    @State private var showChatDetail: Bool
 
     private let onReconnect: () -> Void
 
@@ -39,6 +39,9 @@ public struct WhisperMainTabView: View {
     ) {
         _session = State(initialValue: sessionController)
         _chat = State(initialValue: chatController)
+        _showChatDetail = State(
+            initialValue: ProcessInfo.processInfo.arguments.contains("-WhisperOpenChatDetail")
+        )
         self.onReconnect = onReconnect
     }
 
