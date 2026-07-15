@@ -29,15 +29,15 @@ struct WhisperApplication: App {
 @MainActor
 private enum AppConfiguration {
     private static let installationIDKey = "whisper.installation-id"
+    private static let productionBaseURL = URL(string: "https://hoo66.top")!
 
     static var baseURL: URL {
         guard let rawValue = Bundle.main.object(
             forInfoDictionaryKey: "WhisperAPIBaseURL"
         ) as? String,
-        let url = URL(string: rawValue)
-        else {
-            preconditionFailure("WhisperAPIBaseURL is missing or invalid")
-        }
+        let url = URL(string: rawValue),
+        url.scheme == "https" || url.scheme == "http"
+        else { return productionBaseURL }
         return url
     }
 
