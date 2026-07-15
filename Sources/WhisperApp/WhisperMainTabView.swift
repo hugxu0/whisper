@@ -72,7 +72,9 @@ public struct WhisperMainTabView: View {
             placeholderTab(.account)
                 .tag(WhisperMainTab.account)
         }
+        #if os(iOS)
         .toolbar(.hidden, for: .tabBar)
+        #endif
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if showChatDetail == false {
                 WhisperBottomBar(selection: $selectedTab)
@@ -178,7 +180,9 @@ private struct WhisperPlaceholderView: View {
                     .foregroundStyle(WhisperVisualTheme.mutedInk)
             }
         }
-        .navigationBarHidden(true)
+        #if os(iOS)
+        .toolbar(.hidden, for: .navigationBar)
+        #endif
     }
 }
 #endif
